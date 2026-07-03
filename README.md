@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="images/logo.png" alt="LocalScript logo" width="140">
+
 # LocalScript
 
 ### Local AI Agent for Lua Code Generation
@@ -40,6 +42,12 @@
 ---
 
 ## Architecture
+
+<div align="center">
+
+<img src="images/schema.png" alt="LocalScript architecture schema" width="760">
+
+</div>
 
 ```text
 User request
