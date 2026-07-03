@@ -2,6 +2,8 @@
 
 # LocalScript
 
+<img src="images/logo.png" alt="LocalScript logo" width="100%" style="border-radius: 24px;">
+
 ### Local AI Agent for Lua Code Generation
 
 **Локальный AI-агент для генерации, проверки и автоматического исправления Lua-кода через управляемый agent loop.**
@@ -11,9 +13,6 @@
 ![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000?style=for-the-badge)
 ![Lua](https://img.shields.io/badge/Lua-Code%20Validation-2C2D72?style=for-the-badge&logo=lua&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
-
-<img src="images/logo.png" alt="LocalScript logo" width="100%" style="border-radius: 24px;">
 
 </div>
 
