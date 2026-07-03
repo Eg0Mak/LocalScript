@@ -4,137 +4,108 @@
 
 ### Local AI Agent for Lua Code Generation
 
-**Локальный AI-агент, который превращает задачу на естественном языке в валидный Lua-код, проверяет результат и автоматически исправляет ошибки через agent loop.**
+**Локальный AI-агент для генерации, проверки и автоматического исправления Lua-кода через управляемый agent loop.**
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-000000?style=for-the-badge)
-![Lua](https://img.shields.io/badge/Lua-validation-2C2D72?style=for-the-badge&logo=lua&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000?style=for-the-badge)
+![Lua](https://img.shields.io/badge/Lua-Code%20Validation-2C2D72?style=for-the-badge&logo=lua&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 </div>
 
 ---
 
-## About
+## Overview
 
-**LocalScript** - это backend-проект про локальную LLM-инженерию: FastAPI-сервис принимает пользовательскую задачу, агент планирует следующий шаг, генерирует Lua-код через Ollama, проверяет его через `luac` и при ошибках запускает цикл исправления.
+**LocalScript** - это backend-сервис, который превращает пользовательский запрос на естественном языке в рабочий Lua-код. Агент не просто один раз вызывает модель: он планирует следующий шаг, генерирует решение, валидирует результат и при ошибках запускает цикл исправления.
 
-Проект сделан без внешних AI API и без тяжелых orchestration-фреймворков. Вместо этого здесь прозрачный agent loop, контролируемые промпты, устойчивый JSON parsing и воспроизводимый запуск через Docker.
+Проект построен вокруг локального inference через **Ollama** и модели **qwen2.5-coder:7b**. Внешние AI API не используются, поэтому систему можно запускать и демонстрировать в изолированной среде.
 
-Для рекрутера этот проект показывает не только умение подключить LLM, но и инженерную работу вокруг нее: state management, validation, retry/fix loop, API design, контейнеризацию и работу с ограничениями локальных моделей.
-
----
-
-## Highlights
-
-- **Local-first AI**: inference работает через Ollama, без облачных LLM API.
-- **Agent loop**: planner выбирает действие `generate`, `fix`, `clarify` или `done`.
-- **Self-healing generation**: если Lua-код не проходит проверку, агент передает ошибку модели и пробует исправить код.
-- **Lua validation**: синтаксис проверяется через `luac`, есть отдельная runtime-проверка через `lua`.
-- **Session memory**: FastAPI хранит историю по `session_id` и обрезает контекст при превышении лимита.
-- **Robust parsing**: отдельный parser восстанавливает JSON даже из частично загрязненных ответов модели.
-- **Docker-ready**: сервис, Ollama и загрузка модели описаны в `docker-compose.yml`.
-- **Minimal dependencies**: агент написан вручную, без LangChain/LangGraph, чтобы сохранить контроль над поведением.
+Главная идея проекта - показать практичную LLM-инженерию: не красивую обертку над промптом, а контролируемый пайплайн с состоянием, валидацией, ограничениями, retry logic и понятной архитектурой.
 
 ---
 
-## How It Works
+## What Makes It Strong
+
+- **Local-first architecture**: генерация работает локально через Ollama, без OpenAI API, Anthropic API или других облачных провайдеров.
+- **Custom agent loop**: агент написан вручную, без LangChain и LangGraph, поэтому логика принятия решений полностью прозрачна.
+- **Planner + tools pattern**: planner выбирает действие, а tools выполняют конкретные шаги: `generate`, `fix`, `clarify`, `done`.
+- **Validation-driven generation**: сгенерированный Lua-код проверяется перед возвратом пользователю.
+- **Self-repair flow**: если validator находит ошибку, агент передает ее обратно модели и просит исправить уже существующий код.
+- **Session memory**: API хранит историю диалога по `session_id` и обрезает контекст при превышении лимита.
+- **Robust JSON parsing**: отдельный parser вытаскивает JSON даже из неидеальных ответов модели.
+- **Docker-ready demo**: сервис, Ollama и загрузка модели описаны в Docker Compose.
+
+---
+
+## Architecture
 
 ```text
-User
-  |
-  v
+User request
+    |
+    v
 FastAPI /chat
-  |
-  v
+    |
+    v
 Session memory + context trimming
-  |
-  v
+    |
+    v
 Agent planner
-  |
-  +--> clarify  -> ask one short question
-  +--> generate -> create Lua code with Ollama
-  +--> fix      -> repair code using validator error
-  +--> done     -> return final result
-  |
-  v
+    |
+    +--> clarify  -> one short clarification question
+    +--> generate -> Lua code generation
+    +--> fix      -> error-aware code repair
+    +--> done     -> final response
+    |
+    v
 Lua validator
-  |
-  v
-JSON response
+    |
+    v
+Structured JSON response
 ```
 
-The core idea is simple: **the model does not just generate code once**. It works inside a controlled loop where every result is parsed, validated and either returned or sent back for repair.
+Такой подход делает поведение агента предсказуемым: модель отвечает не произвольным текстом, а структурированным JSON, а каждое действие проходит через контролируемую Python-логику.
 
 ---
 
 ## Tech Stack
 
-| Area | Tools |
+| Area | Technologies |
 | --- | --- |
 | API | FastAPI, Pydantic, Uvicorn |
-| Local LLM | Ollama, `qwen2.5-coder:7b` |
-| Agent runtime | Custom Python agent loop |
-| Validation | `luac`, `lua`, subprocess timeouts |
+| Local LLM | Ollama, qwen2.5-coder:7b |
+| Agent Runtime | Custom Python agent loop |
+| Prompting | Planner prompt, generation prompt, fix prompt |
+| Validation | luac, lua, subprocess timeouts |
+| State | Server-side session memory |
 | Packaging | Docker, Docker Compose |
-| Testing | Pytest-compatible project structure |
 
 ---
 
-## Project Structure
+## Core Flow
 
 ```text
-.
-├── main.py                     # FastAPI app and HTTP endpoints
-├── requirements.txt
-├── docker/
-│   ├── Dockerfile              # Python service image
-│   └── docker-compose.yml      # Ollama + model init + agent service
-├── data/
-│   ├── examples/fewshot.json   # Few-shot examples for generation
-│   └── tasks/dataset_seed.jsonl
-├── src/
-│   ├── agent/
-│   │   ├── agent.py            # Agent loop and tool execution
-│   │   └── state.py            # Conversation state, code, errors, confidence
-│   ├── llm/llm.py              # Ollama client wrapper
-│   ├── prompts/
-│   │   ├── planner.py          # Action selection prompt
-│   │   ├── generate.py         # Lua generation prompt
-│   │   ├── fix.py              # Error-aware repair prompt
-│   │   └── decide.py
-│   ├── utils/parser.py         # Defensive JSON extraction and normalization
-│   ├── validator/validator.py  # Lua syntax/runtime validation helpers
-│   └── config.py               # Model and agent settings
-└── tests/
-    └── test_generate_prompt.py
+generate -> validate -> fix -> validate -> done
 ```
+
+Агент работает итеративно:
+
+1. **Planner** анализирует историю, текущий код и последнюю ошибку.
+2. **Generator** создает компактный Lua-код в строгом JSON-формате.
+3. **Validator** проверяет синтаксис через `luac`.
+4. **Fixer** получает исходную задачу, текущий код и текст ошибки.
+5. **Agent loop** повторяет исправление до успешной проверки или достижения лимита.
+
+Это приближает проект к реальному coding assistant, где важен не сам факт генерации, а способность дойти до валидного результата.
 
 ---
 
-## Quick Start
+## API
 
-### 1. Run with Docker Compose
+### `GET /`
 
-```bash
-cd docker
-docker compose up --build
-```
-
-The compose setup starts:
-
-- `ollama` on port `11434`;
-- `model-init`, which pulls `qwen2.5-coder:7b`;
-- `agent` on port `8080`.
-
-### 2. Check the service
-
-```bash
-curl http://localhost:8080/
-```
-
-Expected response:
+Проверка, что сервис запущен.
 
 ```json
 {
@@ -142,18 +113,20 @@ Expected response:
 }
 ```
 
-### 3. Generate Lua code
+### `POST /chat`
 
-```bash
-curl -X POST http://localhost:8080/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": "demo-user",
-    "message": "Напиши Lua-функцию для факториала"
-  }'
+Основной endpoint для работы с агентом.
+
+Request:
+
+```json
+{
+  "session_id": "demo-user",
+  "message": "Напиши Lua-функцию для факториала"
+}
 ```
 
-Example response shape:
+Response:
 
 ```json
 {
@@ -166,88 +139,153 @@ Example response shape:
 }
 ```
 
----
-
-## API
-
-### `GET /`
-
-Health check endpoint.
-
-### `POST /chat`
-
-Generates, validates or repairs Lua code for a user message.
-
-Request:
-
-```json
-{
-  "session_id": "user-1",
-  "message": "Отфильтруй массив пользователей старше 18 лет"
-}
-```
-
 Possible statuses:
 
-| Status | Meaning |
+| Status | Description |
 | --- | --- |
-| `success` | Code was generated and passed validation |
-| `clarify` | Agent needs one clarification question answered |
-| `failed` | Agent could not produce a valid result within limits |
+| `success` | код успешно создан и прошел проверку |
+| `clarify` | агенту нужно одно уточнение от пользователя |
+| `failed` | агент не смог получить валидный результат в заданных лимитах |
 
 ### `POST /reset`
 
-Clears server-side memory for a session.
+Сброс server-side memory для выбранной сессии.
 
 ---
 
-## Agent Design
+## Quick Start
 
-The agent is intentionally implemented without a heavy framework. This keeps every decision visible:
+### Docker Compose
 
-1. **Planner prompt** inspects conversation state, current code and last validation error.
-2. **Tool dispatcher** calls one of the internal tools: generation, repair, clarification or completion.
-3. **LLM client** sends structured prompts to Ollama.
-4. **Parser** extracts and normalizes JSON responses.
-5. **Validator** checks generated Lua code.
-6. **Loop controller** repeats repair attempts until code is valid or the configured limit is reached.
+```bash
+cd docker
+docker compose up --build
+```
 
-Key limits are configured in `src/config.py`:
+После запуска будут подняты:
+
+- **ollama** на порту `11434`;
+- **model-init** для загрузки `qwen2.5-coder:7b`;
+- **agent** на порту `8080`.
+
+Проверка API:
+
+```bash
+curl http://localhost:8080/
+```
+
+Пример запроса:
+
+```bash
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "demo-user",
+    "message": "Сделай Lua-код для сортировки массива чисел"
+  }'
+```
+
+---
+
+## Project Structure
+
+```text
+.
+├── main.py                     # FastAPI app, endpoints, session memory
+├── requirements.txt
+├── docker/
+│   ├── Dockerfile              # Python service image
+│   └── docker-compose.yml      # Ollama + model init + agent service
+├── data/
+│   ├── examples/fewshot.json   # few-shot examples for generation
+│   └── tasks/dataset_seed.jsonl
+├── src/
+│   ├── agent/
+│   │   ├── agent.py            # main agent loop and tool dispatcher
+│   │   └── state.py            # conversation state, code, errors, confidence
+│   ├── llm/
+│   │   └── llm.py              # Ollama client wrapper
+│   ├── prompts/
+│   │   ├── planner.py          # action selection prompt
+│   │   ├── generate.py         # Lua generation prompt
+│   │   ├── fix.py              # validation-aware repair prompt
+│   │   └── decide.py
+│   ├── utils/
+│   │   └── parser.py           # defensive JSON extraction and normalization
+│   ├── validator/
+│   │   └── validator.py        # Lua validation helpers
+│   └── config.py               # model and agent settings
+└── tests/
+    └── test_generate_prompt.py
+```
+
+---
+
+## Engineering Decisions
+
+### No Heavy Orchestration Framework
+
+Агентная логика реализована вручную. Это делает проект проще для отладки и честнее для демонстрации: видно, где planner принимает решение, где вызывается модель, где парсится ответ и где происходит validation.
+
+### Structured Output
+
+Модель должна возвращать JSON с полями `code` и `explanation`. Так API получает не свободный текст, а предсказуемую структуру, которую можно валидировать и отдавать клиенту.
+
+### Defensive Parser
+
+Локальные модели не всегда идеально соблюдают формат. Поэтому parser умеет убирать markdown fences, извлекать JSON из ответа, чистить control characters и нормализовать переносы строк внутри кода.
+
+### Validation Before Response
+
+Система не доверяет результату модели на слово. Lua-код проходит проверку через `luac`, а ошибка сохраняется в state и используется на следующей итерации исправления.
+
+### Controlled Limits
+
+В `src/config.py` заданы ограничения на модель и поведение агента:
 
 ```python
 MODEL_NAME = "qwen2.5-coder:7b"
+
+LLM_OPTIONS = {
+    "num_ctx": 4096,
+    "num_predict": 256,
+    "temperature": 0.2
+}
+
 MAX_FIX_ATTEMPTS = 4
 MAX_CLARIFY_ATTEMPTS = 3
 ```
 
+Эти лимиты помогают избежать бесконечных циклов и делают поведение сервиса более предсказуемым.
+
 ---
 
-## Why This Project Is Interesting
+## Why It Matters
 
-This repository focuses on problems that appear in real LLM products:
+LocalScript показывает несколько важных навыков, которые полезны в реальной backend и AI engineering разработке:
 
-- local model constraints and short output budgets;
-- unreliable structured output from LLMs;
-- separating planning from execution;
-- preventing infinite clarification/fix loops;
-- validating generated code before returning it to the user;
-- keeping API state on the server side;
-- making the system reproducible for demos and review.
-
-In other words, LocalScript is not just a prompt wrapper. It is a small, inspectable agentic system built around reliability.
+- проектирование agentic workflow без магии фреймворков;
+- работа с локальными open-source моделями;
+- prompt engineering под строгий JSON output;
+- обработка нестабильных LLM-ответов;
+- server-side memory и context trimming;
+- subprocess-based validation;
+- контейнеризация AI-сервиса;
+- умение превращать эксперимент с моделью в воспроизводимый API.
 
 ---
 
 ## Roadmap
 
-- Add automated endpoint tests for `/chat` and `/reset`.
-- Expand Lua validation with sandboxed runtime checks in the main agent path.
-- Add benchmark reports for generated code quality.
-- Support model selection through environment variables.
-- Add persistent session storage for production-like deployments.
+- Добавить полноценные endpoint tests для `/chat` и `/reset`.
+- Подключить runtime validation в основной путь агента.
+- Вынести `MODEL_NAME` в environment variables.
+- Добавить benchmark report по качеству генерации.
+- Реализовать persistent session storage.
+- Добавить UI-клиент для демонстрации agent loop.
 
 ---
 
 ## Author
 
-Built as a local AI engineering project focused on **agent architecture, validation loops and practical LLM reliability**.
+Проект собран как демонстрация практической AI engineering разработки: локальная LLM, управляемый agent loop, validation-first подход и аккуратный backend API.
