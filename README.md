@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="images/logo.png" alt="LocalScript logo" width="600">
+<img src="images/logo.png" alt="LocalScript logo" width="100%">
 
 # LocalScript
 
