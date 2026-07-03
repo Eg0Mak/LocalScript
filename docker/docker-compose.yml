@@ -1,0 +1,51 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: localscript_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  model-init:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      ollama pull qwen2.5-coder:7b
+      "
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: localscript_agent
+    depends_on:
+      ollama:
+        condition: service_healthy
+      model-init:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      MODEL_NAME: qwen2.5-coder:7b
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    command: python main.py
+
+volumes:
+  ollama_data:

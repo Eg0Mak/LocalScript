@@ -1,0 +1,282 @@
+{
+  "generation": [
+    {
+      "id": "gen_001",
+      "task": "Из полученного списка email получи последний.",
+      "context": {
+        "wf": {
+          "vars": {
+            "emails": [
+              "user1@example.com",
+              "user2@example.com",
+              "user3@example.com"
+            ]
+          }
+        }
+      },
+      "output": {
+        "code": "return wf.vars.emails[#wf.vars.emails]",
+        "explanation": "Берем последний элемент массива emails."
+      }
+    },
+    {
+      "id": "gen_002",
+      "task": "Увеличивай значение переменной try_count_n на каждой итерации.",
+      "context": {
+        "wf": {
+          "vars": {
+            "try_count_n": 3
+          }
+        }
+      },
+      "output": {
+        "code": "return wf.vars.try_count_n + 1",
+        "explanation": "Увеличиваем счетчик на 1."
+      }
+    },
+    {
+      "id": "gen_003",
+      "task": "Для полученных данных из предыдущего REST запроса очисти значения переменных ID, ENTITY_ID, CALL.",
+      "context": {
+        "wf": {
+          "vars": {
+            "RESTbody": {
+              "result": [
+                {
+                  "ID": 123,
+                  "ENTITY_ID": 456,
+                  "CALL": "example_call_1",
+                  "OTHER_KEY_1": "value1",
+                  "OTHER_KEY_2": "value2"
+                },
+                {
+                  "ID": 789,
+                  "ENTITY_ID": 101,
+                  "CALL": "example_call_2",
+                  "EXTRA_KEY_1": "value3",
+                  "EXTRA_KEY_2": "value4"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "output": {
+        "code": "result = wf.vars.RESTbody.result\nfor _, filteredEntry in pairs(result) do\n  for key, value in pairs(filteredEntry) do\n    if key ~= \"ID\" and key ~= \"ENTITY_ID\" and key ~= \"CALL\" then\n      filteredEntry[key] = nil\n    end\n  end\nend\nreturn result",
+        "explanation": "Оставляем только поля ID, ENTITY_ID и CALL."
+      }
+    },
+    {
+      "id": "gen_004",
+      "task": "Преобразуй время из формата 'YYYYMMDD' и 'HHMMSS' в строку в формате ISO 8601.",
+      "context": {
+        "wf": {
+          "vars": {
+            "json": {
+              "IDOC": {
+                "ZCDF_HEAD": {
+                  "DATUM": "20231015",
+                  "TIME": "153000"
+                }
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "code": "DATUM = wf.vars.json.IDOC.ZCDF_HEAD.DATUM\nTIME = wf.vars.json.IDOC.ZCDF_HEAD.TIME\nlocal function safe_sub(str, start, finish)\n  local s = string.sub(str, start, math.min(finish, #str))\n  return s ~= \"\" and s or \"00\"\nend\nyear = safe_sub(DATUM, 1, 4)\nmonth = safe_sub(DATUM, 5, 6)\nday = safe_sub(DATUM, 7, 8)\nhour = safe_sub(TIME, 1, 2)\nminute = safe_sub(TIME, 3, 4)\nsecond = safe_sub(TIME, 5, 6)\niso_date = string.format('%s-%s-%sT%s:%s:%s.00000Z', year, month, day, hour, minute, second)\nreturn iso_date",
+        "explanation": "Разбираем дату и время на части и собираем ISO 8601 строку."
+      }
+    },
+    {
+      "id": "gen_005",
+      "task": "Как преобразовать структуру данных так, чтобы все элементы items в ZCDF_PACKAGES всегда были представлены в виде массивов, даже если они изначально не являются массивами.",
+      "context": {
+        "wf": {
+          "vars": {
+            "json": {
+              "IDOC": {
+                "ZCDF_HEAD": {
+                  "ZCDF_PACKAGES": [
+                    {
+                      "items": [
+                        {
+                          "sku": "A"
+                        },
+                        {
+                          "sku": "B"
+                        }
+                      ]
+                    },
+                    {
+                      "items": {
+                        "sku": "C"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "code": "function ensureArray(t)\n  if type(t) ~= \"table\" then\n    return {t}\n  end\n  local isArray = true\n  for k, v in pairs(t) do\n    if type(k) ~= \"number\" or math.floor(k) ~= k then\n      isArray = false\n      break\n    end\n  end\n  return isArray and t or {t}\nend\nfunction ensureAllItemsAreArrays(objectsArray)\n  if type(objectsArray) ~= \"table\" then\n    return objectsArray\n  end\n  for _, obj in ipairs(objectsArray) do\n    if type(obj) == \"table\" and obj.items then\n      obj.items = ensureArray(obj.items)\n    end\n  end\n  return objectsArray\nend\nreturn ensureAllItemsAreArrays(wf.vars.json.IDOC.ZCDF_HEAD.ZCDF_PACKAGES)",
+        "explanation": "Нормализуем items к массиву для каждого объекта."
+      }
+    },
+    {
+      "id": "gen_006",
+      "task": "Отфильтруй элементы из массива, чтобы включить только те, у которых есть значения в полях Discount или Markdown.",
+      "context": {
+        "wf": {
+          "vars": {
+            "parsedCsv": [
+              {
+                "SKU": "A001",
+                "Discount": "10%",
+                "Markdown": ""
+              },
+              {
+                "SKU": "A002",
+                "Discount": "",
+                "Markdown": "5%"
+              },
+              {
+                "SKU": "A003",
+                "Discount": null,
+                "Markdown": null
+              },
+              {
+                "SKU": "A004",
+                "Discount": "",
+                "Markdown": ""
+              }
+            ]
+          }
+        }
+      },
+      "output": {
+        "code": "local result = _utils.array.new()\nlocal items = wf.vars.parsedCsv\nfor _, item in ipairs(items) do\n  if (item.Discount ~= \"\" and item.Discount ~= nil) or (item.Markdown ~= \"\" and item.Markdown ~= nil) then\n    table.insert(result, item)\n  end\nend\nreturn result",
+        "explanation": "Оставляем только строки, где Discount или Markdown не пустые."
+      }
+    },
+    {
+      "id": "gen_007",
+      "task": "Добавь переменную с квадратом числа.",
+      "context": {
+        "existing_code": {
+          "num": "lua{return tonumber('5')}lua"
+        }
+      },
+      "output": {
+        "code": "local n = tonumber('5')\nreturn n * n",
+        "explanation": "Преобразуем значение в число и возвращаем квадрат."
+      }
+    },
+    {
+      "id": "gen_008",
+      "task": "Конвертируй время в переменной recallTime в unix-формат.",
+      "context": {
+        "wf": {
+          "initVariables": {
+            "recallTime": "2023-10-15T15:30:00+00:00"
+          }
+        }
+      },
+      "output": {
+        "code": "local iso_time = wf.initVariables.recallTime\nlocal days_in_month = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}\nif not iso_time or not iso_time:match(\"^%d%d%d%d%-%d%d%-%d%dT\") then\n  return nil\nend\nlocal function is_leap_year(year)\n  return (year % 4 == 0 and year % 100 ~= 0) or (year % 400 == 0)\nend\nlocal function days_since_epoch(year, month, day)\n  local days = 0\n  for y = 1970, year - 1 do\n    days = days + (is_leap_year(y) and 366 or 365)\n  end\n  for m = 1, month - 1 do\n    days = days + days_in_month[m]\n    if m == 2 and is_leap_year(year) then\n      days = days + 1\n    end\n  end\n  days = days + (day - 1)\n  return days\nend\nlocal function parse_iso8601_to_epoch(iso_str)\n  if not iso_str then\n    error(\"Дата не задана (nil)\")\n  end\n  local year, month, day, hour, min, sec, ms, offset_sign, offset_hour, offset_min = iso_str:match(\"(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)%.(%d+)([+-])(%d+):(%d+)\")\n  if not year then\n    year, month, day, hour, min, sec, offset_sign, offset_hour, offset_min = iso_str:match(\"(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)([+-])(%d+):(%d+)\")\n    ms = 0\n  end\n  if not year then\n    error(\"Невозможно разобрать дату: \" .. tostring(iso_str))\n  end\n  year = tonumber(year)\n  month = tonumber(month)\n  day = tonumber(day)\n  hour = tonumber(hour)\n  min = tonumber(min)\n  sec = tonumber(sec)\n  ms = tonumber(ms) or 0\n  offset_hour = tonumber(offset_hour)\n  offset_min = tonumber(offset_min)\n  local total_days = days_since_epoch(year, month, day)\n  local total_seconds = total_days * 86400 + hour * 3600 + min * 60 + sec\n  local offset_seconds = offset_hour * 3600 + offset_min * 60\n  if offset_sign == \"-\" then\n    offset_seconds = -offset_seconds\n  end\n  return total_seconds - offset_seconds\nend\nlocal epoch_seconds = parse_iso8601_to_epoch(iso_time)\nreturn epoch_seconds",
+        "explanation": "Разбираем ISO 8601 строку и переводим ее в unix timestamp."
+      }
+    }
+  ],
+  "fix": [
+    {
+      "id": "fix_001",
+      "bad_code": "wf.vars.try_count_n + 1",
+      "error": "В коде отсутствует return.",
+      "output": {
+        "code": "return wf.vars.try_count_n + 1",
+        "explanation": "Добавлен return, чтобы код возвращал результат."
+      }
+    },
+    {
+      "id": "fix_002",
+      "bad_code": "return emails[#emails]",
+      "error": "Нужно обращаться к данным через wf.vars.",
+      "output": {
+        "code": "return wf.vars.emails[#wf.vars.emails]",
+        "explanation": "Исправлен доступ к данным в соответствии с окружением."
+      }
+    },
+    {
+      "id": "fix_003",
+      "bad_code": "local iso_time = wf.vars.recallTime\nreturn iso_time",
+      "error": "Переменная recallTime находится в wf.initVariables, а не в wf.vars.",
+      "output": {
+        "code": "local iso_time = wf.initVariables.recallTime\nreturn iso_time",
+        "explanation": "Использован правильный источник данных: wf.initVariables."
+      }
+    },
+    {
+      "id": "fix_004",
+      "bad_code": "local result = {}\nfor _, item in ipairs(wf.vars.items) do\n  if item.active == true then\n    table.insert(result, item)\n  end\nend\nreturn result",
+      "error": "Для массива результата нужно использовать _utils.array.new().",
+      "output": {
+        "code": "local result = _utils.array.new()\nfor _, item in ipairs(wf.vars.items) do\n  if item.active == true then\n    table.insert(result, item)\n  end\nend\nreturn result",
+        "explanation": "Создание массива результата заменено на _utils.array.new()."
+      }
+    },
+    {
+      "id": "fix_005",
+      "bad_code": "local result = _utils.array.new()\nfor _, item in ipairs(wf.vars.parsedCsv) do\n  if item.Discount ~= \"\" or item.Markdown ~= \"\" then\n    table.insert(result, item)\n  end\nend\nreturn result",
+      "error": "Нужно учитывать nil-значения, а не только пустые строки.",
+      "output": {
+        "code": "local result = _utils.array.new()\nfor _, item in ipairs(wf.vars.parsedCsv) do\n  if (item.Discount ~= \"\" and item.Discount ~= nil) or (item.Markdown ~= \"\" and item.Markdown ~= nil) then\n    table.insert(result, item)\n  end\nend\nreturn result",
+        "explanation": "Добавлены проверки на nil для Discount и Markdown."
+      }
+    }
+  ],
+  "clarification": [
+    {
+      "id": "clarify_001",
+      "input": "Отфильтруй массив.",
+      "output": {
+        "action": "clarify",
+        "question": "Уточни условие фильтрации: по каким полям или значениям нужно оставить элементы?"
+      }
+    },
+    {
+      "id": "clarify_002",
+      "input": "Преобразуй дату в нужный формат.",
+      "output": {
+        "action": "clarify",
+        "question": "Уточни исходный формат даты и какой итоговый формат требуется."
+      }
+    },
+    {
+      "id": "clarify_003",
+      "input": "Добавь новое поле в результат.",
+      "output": {
+        "action": "clarify",
+        "question": "Уточни название нового поля и как вычислять его значение."
+      }
+    },
+    {
+      "id": "clarify_004",
+      "input": "Из полученного списка email получи последний.",
+      "output": {
+        "action": "generate",
+        "question": ""
+      }
+    },
+    {
+      "id": "clarify_005",
+      "input": "Увеличивай значение переменной try_count_n на каждой итерации.",
+      "output": {
+        "action": "generate",
+        "question": ""
+      }
+    }
+  ]
+}
