@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="images/logo.png" alt="LocalScript logo" width="100%">
-
 # LocalScript
+
+<img src="images/logo.png" alt="LocalScript logo" width="100%" style="border-radius: 24px;">
 
 ### Local AI Agent for Lua Code Generation
 
